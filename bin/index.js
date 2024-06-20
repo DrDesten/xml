@@ -1,5 +1,5 @@
 import { inspect } from "util"
-import { parseXML } from "./parser.js"
+import { parseHTML, parseXML } from "./parser.js"
 
 
 const empty = ``
@@ -24,16 +24,16 @@ const html = `<!DOCTYPE html>
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>DrDesten - Home</title>
-    <meta name="description" content="Homepage of DrDesten, creator of DrDestens MinecraftShaders and Stracciatella Shaders. Check out my tools: Gaussian Kernel Calculator, Vogel Disk Calculator, Array Progressifier, Probability distribution analyzer"/>
-    <link rel="icon" type="image/png" href="icons/icon_main.png"/>
-<link rel="stylesheet" href="defaultstyles.css"/>
-<link rel="stylesheet" href="general.css"/>
+    <meta name="description" content="Homepage of DrDesten, creator of DrDestens MinecraftShaders and Stracciatella Shaders. Check out my tools: Gaussian Kernel Calculator, Vogel Disk Calculator, Array Progressifier, Probability distribution analyzer">
+    <link rel="icon" type="image/png" href="icons/icon_main.png">
+    <link rel="stylesheet" href="defaultstyles.css">
+    <link rel="stylesheet" href="general.css">
     <noscript>
-        <link rel="stylesheet" href="noscript.css"/>
+        <link rel="stylesheet" href="noscript.css">
     </noscript>
 </head>
 
@@ -67,7 +67,7 @@ const html = `<!DOCTYPE html>
         </div>
     </header>
 
-    <a href="https://www.github.com/DrDesten/" target="_blank" rel="noopener noreferrer"><img class="icon" src="icons/GitHub Mark.svg" alt="GitHub Mark" width="100" height="100"/></a>
+    <a href="https://www.github.com/DrDesten/" target="_blank" rel="noopener noreferrer"><img class="icon" src="icons/GitHub Mark.svg" alt="GitHub Mark" width="100" height="100"></a>
 
     <div id="canvas" style="position: absolute;top:0;bottom:0;right:0;left:0;z-index:-1;"></div>
 
@@ -75,9 +75,29 @@ const html = `<!DOCTYPE html>
     <script src="animation.js"></script>
     <script src="svgbackground.js"></script>
 
+    <script>
+        // Rotate Links
+        const links = [
+            { prefix: "check out my ", text: "Caffeine Tracker", url: "tools/caffeine/" },
+            { prefix: "check out my ", text: "Gaussian Kernel Calculator", url: "tools/gaussian_kernel/" },
+            { prefix: "check out my ", text: "Distribution Analyzer", url: "tools/distribution/" },
+            { prefix: "check out my ", text: "Sample Optimizer", url: "tools/sample_optimizer/" },
+            { prefix: "check out my ", text: "Sequence Generator", url: "tools/sequence_generator/" },
+            { prefix: "check out my ", text: "Vogel Disk Generator", url: "tools/vogel_disk/" },
+            { prefix: "check out ", text: "pi", url: "pi/" },
+        ]
+
+        const subtitle = document.getElementById( "header-subtitle" )
+
+        setInterval( function () {
+            const link = links[~~( Math.random() * links.length )]
+            subtitle.innerHTML = link.prefix
+                + \`<a href="\${link.url}"><i>\${link.text}</i></a>\`
+        }, 10_000 )
+    </script>
 </body>
 
 </html>`
 
-console.log( inspect( parseXML( html ), false, Infinity, true ) )
-console.log( parseXML( html ) )
+console.log( inspect( parseHTML( html ), false, Infinity, true ) )
+console.log( parseHTML( html ) )

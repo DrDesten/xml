@@ -1,13 +1,30 @@
+const HTMLVoidElements = new Set( [
+    "area",
+    "base",
+    "br",
+    "col",
+    "embed",
+    "hr",
+    "img",
+    "input",
+    "link",
+    "meta",
+    "param",
+    "source",
+    "track",
+    "wbr",
+] )
+
 
 /**
  * @typedef {Object} XMLNode
  * @property {string} name
  * @property {{[attribute: string]: string}} attributes
  * @property {(XMLNode|string)[]} children
- * @property {XMLNode} parent
+ * @property {XMLNode?} parent
  */
 
-class Lexer {
+class Parser {
     /** @param {string} text */
     constructor( text ) {
         this.text = text
@@ -81,7 +98,7 @@ class Lexer {
         return comparison
     }
 
-    // Utils
+    // Lexing Utils
 
     advanceWhitespace() {
         return this.advanceWhile( /\s/ )
@@ -92,72 +109,95 @@ class Lexer {
     advanceString() {
         return this.#advanceAll_r( /(["'])[^]*?\1/ ).slice( 1, -1 )
     }
+
+    // Parsing Utils
+
+    /** @returns {{name: string, attributes: {[attribute: string]: string}, selfClosing: boolean}} */
+    parseTagBegin() {
+        const tag = {
+            name: undefined,
+            attributes: {},
+            selfClosing: undefined,
+        }
+
+        // Parse Name
+        this.advance( "<" )
+        tag.name = this.advanceIdentifier()
+        this.advanceWhitespace()
+
+        // Parse Attributes
+        while ( !this.peekAll( /\/?>/ ) ) {
+            const key = this.advanceIdentifier()
+            this.advanceWhitespace()
+
+            if ( this.peek( "=" ) ) {
+                this.advance( "=" )
+                this.advanceWhitespace()
+                const value = this.advanceString()
+                tag.attributes[key] = value
+            } else {
+                tag.attributes[key] = ""
+            }
+
+            this.advanceWhitespace()
+        }
+
+        // Close
+        tag.selfClosing = !!this.peekAll( "/>" )
+        this.advanceAll( /\/?>/ )
+
+        return tag
+    }
+}
+
+/** @param {XMLNode?} node @param {(node: XMLNode) => boolean} predicate */
+function probeParents( node, predicate ) {
+    let curr = node
+    while ( curr ) {
+        if ( predicate( curr ) ) return curr
+        curr = curr.parent
+    }
+    return null
 }
 
 export function parseXML( text ) {
     text = text.replace( /<!--[^]*?-->/g, "" )
-    const lexer = new Lexer( text )
+    const parser = new Parser( text )
 
     /** @param {XMLNode} parent  */
     function parseNode( parent ) {
         // Parse Begin Tag
-        lexer.advance( "<" )
-        const name = lexer.advanceIdentifier()
-        lexer.advanceWhitespace()
-
-        // Parse Attributes
-        const attributes = {}
-        while ( !lexer.peekAll( /\/?>/ ) ) {
-            const key = lexer.advanceIdentifier()
-            lexer.advanceWhitespace()
-
-            if ( lexer.peek( "=" ) ) {
-                lexer.advance( "=" )
-                lexer.advanceWhitespace()
-                const value = lexer.advanceString()
-                attributes[key] = value
-            } else {
-                attributes[key] = ""
-            }
-
-            lexer.advanceWhitespace()
-        }
-
+        const { name, attributes, selfClosing } = parser.parseTagBegin()
         const node = { name, attributes, children: [], parent }
-
-        if ( lexer.peekAll( "/>" ) ) {
-            lexer.advanceAll( "/>" )
-            return node
-        }
+        if ( selfClosing ) return node
 
         // Parse Children
-        lexer.advance( ">" )
         node.children = parseChildren( node )
-        lexer.advanceAll( `</${name}>` )
+        parser.advanceAll( `</${name}>` )
 
         return node
     }
 
     /** @param {XMLNode} parent  */
     function parseChild( parent ) {
-        if ( lexer.peekAll( /<[a-zA-Z]/ ) )
+        if ( parser.peekAll( /<[a-zA-Z]/ ) )
             return parseNode( parent )
         else
-            return lexer.advanceAll( /([^<]|<[^a-zA-Z\/])+/ )
+            return parser.advanceAll( /([^<]|<[^a-zA-Z\/])+/ )
     }
 
     /** @param {XMLNode} parent  */
     function parseChildren( parent ) {
         const children = []
         const end = `</${parent.name}>`
-        while ( lexer.peek() && !lexer.peekAll( end ) )
+        while ( parser.peek() && !parser.peekAll( end ) )
             children.push( parseChild( parent ) )
         return children
     }
 
     function parseRoot() {
         const children = []
-        while ( lexer.peek() )
+        while ( parser.peek() )
             children.push( parseChild( null ) )
         return children
     }
@@ -165,7 +205,57 @@ export function parseXML( text ) {
     return parseRoot()
 }
 
-/** @param {string} text */
-export function parse( text ) {
 
+export function parseHTML( text ) {
+    text = text.replace( /<!--[^]*?-->/g, "" )
+    const parser = new Parser( text )
+
+    /** @param {XMLNode} parent  */
+    function parseNode( parent ) {
+        // Parse Begin Tag
+        const { name, attributes, selfClosing } = parser.parseTagBegin()
+        const node = { name, attributes, children: [], parent }
+        if ( HTMLVoidElements.has( name ) ) return node
+
+        // Parse Children
+        if ( name === "script" || name === "style" ) {
+            node.children = parseForeignText( node )
+        } else {
+            node.children = parseChildren( node )
+        }
+        parser.advanceAll( `</${name}>` )
+
+        return node
+    }
+
+    /** @param {XMLNode} parent  */
+    function parseForeignText( parent ) {
+        return [parser.advanceAll( RegExp( `[^]*?(?=</${parent.name}>)` ) )]
+    }
+
+    /** @param {XMLNode} parent  */
+    function parseChild( parent ) {
+        if ( parser.peekAll( /<[a-zA-Z]/ ) )
+            return parseNode( parent )
+        else
+            return parser.advanceAll( /([^<]|<[^a-zA-Z\/])+/ )
+    }
+
+    /** @param {XMLNode} parent  */
+    function parseChildren( parent ) {
+        const children = []
+        const end = `</${parent.name}>`
+        while ( parser.peek() && !parser.peekAll( end ) )
+            children.push( parseChild( parent ) )
+        return children
+    }
+
+    function parseRoot() {
+        const children = []
+        while ( parser.peek() )
+            children.push( parseChild( null ) )
+        return children
+    }
+
+    return parseRoot()
 }
