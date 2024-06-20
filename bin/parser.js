@@ -15,14 +15,62 @@ const HTMLVoidElements = new Set( [
     "wbr",
 ] )
 
-
 /**
- * @typedef {Object} XMLNode
- * @property {string} name
- * @property {{[attribute: string]: string}} attributes
- * @property {(XMLNode|string)[]} children
- * @property {XMLNode?} parent
+ * @typedef {(node: XMLNode) => boolean} XMLQueryPredicate
  */
+
+class XMLNode {
+    /**
+     * @param {string} name
+     * @param {{[attribute: string]: string}} [attributes]
+     * @param {(XMLNode|string)[]} [children]
+     * @param {XMLNode?} [parent]
+     * @param {{start: number, end: number}} properties
+     */
+    constructor( name, attributes, children, parent, properties ) {
+        this.name = name
+        this.attributes = attributes
+        this.children = children
+        this.parent = parent
+        this.properties = properties
+    }
+
+    /** @param {XMLQueryPredicate} predicate */
+    findChild( predicate ) {
+        for ( const child of this.children ) {
+            if ( child instanceof XMLNode ) {
+                if ( predicate( child ) ) return child
+                const found = child.findChild( predicate )
+                if ( found ) return found
+            }
+        }
+        return null
+    }
+
+    /** @param {XMLQueryPredicate} predicate */
+    findChildren( predicate ) {
+        const results = []
+        const stack = [this]
+        while ( stack.length ) {
+            const node = stack.pop()
+            if ( node instanceof XMLNode ) {
+                if ( predicate( node ) ) results.push( node )
+                stack.push( ...node.children )
+            }
+        }
+        return results
+    }
+
+    /** @param {XMLQueryPredicate} predicate */
+    probeParents( predicate ) {
+        let curr = this
+        while ( curr ) {
+            if ( predicate( curr ) ) return curr
+            curr = curr.parent
+        }
+        return null
+    }
+}
 
 class Parser {
     /** @param {string} text */
@@ -150,15 +198,6 @@ class Parser {
     }
 }
 
-/** @param {XMLNode?} node @param {(node: XMLNode) => boolean} predicate */
-function probeParents( node, predicate ) {
-    let curr = node
-    while ( curr ) {
-        if ( predicate( curr ) ) return curr
-        curr = curr.parent
-    }
-    return null
-}
 
 export function parseXML( text ) {
     text = text.replace( /<!--[^]*?-->/g, "" )
@@ -167,13 +206,15 @@ export function parseXML( text ) {
     /** @param {XMLNode} parent  */
     function parseNode( parent ) {
         // Parse Begin Tag
+        const start = parser.index
         const { name, attributes, selfClosing } = parser.parseTagBegin()
-        const node = { name, attributes, children: [], parent }
+        const node = new XMLNode( name, attributes, [], parent, { start, end: parser.index } )
         if ( selfClosing ) return node
 
         // Parse Children
         node.children = parseChildren( node )
         parser.advanceAll( `</${name}>` )
+        node.properties.end = parser.index
 
         return node
     }
@@ -213,8 +254,9 @@ export function parseHTML( text ) {
     /** @param {XMLNode} parent  */
     function parseNode( parent ) {
         // Parse Begin Tag
-        const { name, attributes, selfClosing } = parser.parseTagBegin()
-        const node = { name, attributes, children: [], parent }
+        const start = parser.index
+        const { name, attributes } = parser.parseTagBegin()
+        const node = new XMLNode( name, attributes, [], parent, { start, end: parser.index } )
         if ( HTMLVoidElements.has( name ) ) return node
 
         // Parse Children
@@ -224,6 +266,7 @@ export function parseHTML( text ) {
             node.children = parseChildren( node )
         }
         parser.advanceAll( `</${name}>` )
+        node.properties.end = parser.index
 
         return node
     }
@@ -238,15 +281,17 @@ export function parseHTML( text ) {
         if ( parser.peekAll( /<[a-zA-Z]/ ) )
             return parseNode( parent )
         else
-            return parser.advanceAll( /([^<]|<[^a-zA-Z\/])+/ )
+            return parser.advanceAll( /([^<]|<[^a-zA-Z\/])+/ ).replace( /\s+/, " " ).trim()
     }
 
     /** @param {XMLNode} parent  */
     function parseChildren( parent ) {
         const children = []
         const end = `</${parent.name}>`
-        while ( parser.peek() && !parser.peekAll( end ) )
-            children.push( parseChild( parent ) )
+        while ( parser.peek() && !parser.peekAll( end ) ) {
+            const child = parseChild( parent )
+            if ( child ) children.push( child )
+        }
         return children
     }
 
