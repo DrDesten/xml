@@ -1,3 +1,4 @@
+
 /**
  * @typedef {Object} XMLNode
  * @property {string} name
@@ -13,16 +14,16 @@ class Lexer {
         this.index = 0
     }
 
-    /** @param {RegExp} [comparison] */
+    /** @param {RegExp|string} [comparison] */
     peek( comparison ) {
         const char = this.text[this.index]
-        const valid = ( !comparison || comparison.test( char ) )
+        const valid = !comparison || ( typeof comparison === "string" ? char === comparison : comparison.test( char ) )
         return valid ? char : ""
     }
-    /** @param {RegExp} [comparison] */
+    /** @param {RegExp|string} [comparison] */
     advance( comparison ) {
         const char = this.text[this.index]
-        const valid = ( !comparison || comparison.test( char ) )
+        const valid = !comparison || ( typeof comparison === "string" ? char === comparison : comparison.test( char ) )
         if ( !valid ) throw new Error( `advance(): Expected ${comparison}, got '${char}'` )
         else this.index++
         return char
@@ -45,27 +46,51 @@ class Lexer {
         return result
     }
 
-    /** @param {RegExp} comparison */
+    /** @param {RegExp|string} comparison */
     peekAll( comparison ) {
+        return typeof comparison === "string" ? this.#peekAll_s( comparison ) : this.#peekAll_r( comparison )
+    }
+    /** @param {RegExp} comparison */
+    #peekAll_r( comparison ) {
         const match = this.text.slice( this.index ).match( comparison )
         if ( !match || match.index !== 0 ) return ""
         return match[0]
     }
+    /** @param {string} comparison */
+    #peekAll_s( comparison ) {
+        return this.text.slice( this.index, this.index + comparison.length ) === comparison ? comparison : ""
+    }
 
-    /** @param {RegExp} comparison */
+    /** @param {RegExp|string} comparison */
     advanceAll( comparison ) {
+        return typeof comparison === "string" ? this.#advanceAll_s( comparison ) : this.#advanceAll_r( comparison )
+    }
+    /** @param {RegExp} comparison */
+    #advanceAll_r( comparison ) {
         const match = this.text.slice( this.index ).match( comparison )
         if ( !match || match.index !== 0 )
-            throw new Error( `advanceAll(): Expected ${comparison}, got '${this.text.slice( this.index, this.index + 10 )}'` )
+            throw new Error( `advanceAll(): Expected ${comparison}, got '${this.text.slice( this.index, this.index + 16 )}'` )
         this.index += match[0].length
         return match[0]
     }
-
+    /** @param {string} comparison */
+    #advanceAll_s( comparison ) {
+        if ( this.text.slice( this.index, this.index + comparison.length ) !== comparison )
+            throw new Error( `advanceAll(): Expected '${comparison}', got '${this.text.slice( this.index, this.index + comparison.length )}'` )
+        this.index += comparison.length
+        return comparison
+    }
 
     // Utils
 
+    advanceWhitespace() {
+        return this.advanceWhile( /\s/ )
+    }
     advanceIdentifier() {
-        return this.advanceAll( /[a-zA-Z0-9_-]+/ )
+        return this.#advanceAll_r( /[a-zA-Z0-9_-]+/ )
+    }
+    advanceString() {
+        return this.#advanceAll_r( /(["'])[^]*?\1/ ).slice( 1, -1 )
     }
 }
 
@@ -76,39 +101,39 @@ export function parseXML( text ) {
     /** @param {XMLNode} parent  */
     function parseNode( parent ) {
         // Parse Begin Tag
-        lexer.advance( /</ )
+        lexer.advance( "<" )
         const name = lexer.advanceIdentifier()
-        lexer.advanceWhile( /\s/ )
+        lexer.advanceWhitespace()
 
         // Parse Attributes
         const attributes = {}
         while ( !lexer.peekAll( /\/?>/ ) ) {
             const key = lexer.advanceIdentifier()
-            lexer.advanceWhile( /\s/ )
+            lexer.advanceWhitespace()
 
-            if ( lexer.peek( /=/ ) ) {
-                lexer.advance( /=/ )
-                lexer.advanceWhile( /\s/ )
-                const value = lexer.advanceAll( /(["'])[^]*?\1/ ).slice( 1, -1 )
+            if ( lexer.peek( "=" ) ) {
+                lexer.advance( "=" )
+                lexer.advanceWhitespace()
+                const value = lexer.advanceString()
                 attributes[key] = value
             } else {
                 attributes[key] = ""
             }
 
-            lexer.advanceWhile( /\s/ )
+            lexer.advanceWhitespace()
         }
 
         const node = { name, attributes, children: [], parent }
 
-        if ( lexer.peekAll( /\/>/ ) ) {
-            lexer.advanceAll( /\/>/ )
+        if ( lexer.peekAll( "/>" ) ) {
+            lexer.advanceAll( "/>" )
             return node
         }
 
         // Parse Children
-        lexer.advance( />/ )
+        lexer.advance( ">" )
         node.children = parseChildren( node )
-        lexer.advanceAll( RegExp( `</${name}>` ) )
+        lexer.advanceAll( `</${name}>` )
 
         return node
     }
@@ -124,7 +149,7 @@ export function parseXML( text ) {
     /** @param {XMLNode} parent  */
     function parseChildren( parent ) {
         const children = []
-        const end = RegExp( `</${parent.name}>` )
+        const end = `</${parent.name}>`
         while ( lexer.peek() && !lexer.peekAll( end ) )
             children.push( parseChild( parent ) )
         return children

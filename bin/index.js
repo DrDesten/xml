@@ -1,4 +1,6 @@
+import { inspect } from "util"
 import { parseXML } from "./parser.js"
+
 
 const empty = ``
 const text = `Sample "Text"!`
@@ -77,4 +79,5 @@ const html = `<!DOCTYPE html>
 
 </html>`
 
+console.log( inspect( parseXML( html ), false, Infinity, true ) )
 console.log( parseXML( html ) )
