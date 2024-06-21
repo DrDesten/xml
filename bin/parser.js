@@ -1,3 +1,133 @@
+const HTMLElements = new Set( [
+    "a",
+    "abbr",
+    "acronym>",
+    "address",
+    "area",
+    "article",
+    "aside",
+    "audio",
+    "b",
+    "base",
+    "bdi",
+    "bdo",
+    "big>",
+    "blockquote",
+    "body",
+    "br",
+    "button",
+    "canvas",
+    "caption",
+    "center>",
+    "cite",
+    "code",
+    "col",
+    "colgroup",
+    "data",
+    "datalist",
+    "dd",
+    "del",
+    "details",
+    "dfn",
+    "dialog",
+    "dir>",
+    "div",
+    "dl",
+    "dt",
+    "em",
+    "embed",
+    "fencedframe>",
+    "fieldset",
+    "figcaption",
+    "figure",
+    "font>",
+    "footer",
+    "form",
+    "frame>",
+    "frameset>",
+    "h1",
+    "head",
+    "header",
+    "hgroup",
+    "hr",
+    "html",
+    "i",
+    "iframe",
+    "img",
+    "input",
+    "ins",
+    "kbd",
+    "label",
+    "legend",
+    "li",
+    "link",
+    "main",
+    "map",
+    "mark",
+    "marquee>",
+    "menu",
+    "menuitem>",
+    "meta",
+    "meter",
+    "nav",
+    "nobr>",
+    "noembed>",
+    "noframes>",
+    "noscript",
+    "object",
+    "ol",
+    "optgroup",
+    "option",
+    "output",
+    "p",
+    "param>",
+    "picture",
+    "plaintext>",
+    "portal>",
+    "pre",
+    "progress",
+    "q",
+    "rb>",
+    "rp",
+    "rt",
+    "rtc>",
+    "ruby",
+    "s",
+    "samp",
+    "script",
+    "search",
+    "section",
+    "select",
+    "slot",
+    "small",
+    "source",
+    "span",
+    "strike>",
+    "strong",
+    "style",
+    "sub",
+    "summary",
+    "sup",
+    "table",
+    "tbody",
+    "td",
+    "template",
+    "textarea",
+    "tfoot",
+    "th",
+    "thead",
+    "time",
+    "title",
+    "tr",
+    "track",
+    "tt>",
+    "u",
+    "ul",
+    "var",
+    "video",
+    "wbr",
+    "xmp",
+] )
 const HTMLVoidElements = new Set( [
     "area",
     "base",
@@ -19,7 +149,7 @@ const HTMLVoidElements = new Set( [
  * @typedef {(node: XMLNode) => boolean} XMLQueryPredicate
  */
 
-class XMLNode {
+export class XMLNode {
     /**
      * @param {string} name
      * @param {{[attribute: string]: string}} [attributes]
@@ -37,12 +167,14 @@ class XMLNode {
 
     /** @param {XMLQueryPredicate} predicate */
     findChild( predicate ) {
-        for ( const child of this.children ) {
-            if ( child instanceof XMLNode ) {
-                if ( predicate( child ) ) return child
-                const found = child.findChild( predicate )
-                if ( found ) return found
-            }
+        const stack = [this]
+        function push( e ) { for ( let i = e.length - 1; i >= 0; i-- ) if ( e[i] instanceof XMLNode ) stack.push( e[i] ) }
+        function pop() { return stack.pop() }
+
+        while ( stack.length ) {
+            const node = pop()
+            if ( predicate( node ) ) return node
+            push( node.children )
         }
         return null
     }
@@ -51,31 +183,22 @@ class XMLNode {
     findChildren( predicate ) {
         const results = []
         const stack = [this]
+        function push( e ) { for ( let i = e.length - 1; i >= 0; i-- ) if ( e[i] instanceof XMLNode ) stack.push( e[i] ) }
+        function pop() { return stack.pop() }
+
         while ( stack.length ) {
-            const node = stack.pop()
-            if ( node instanceof XMLNode ) {
-                if ( predicate( node ) ) results.push( node )
-                stack.push( ...node.children )
-            }
+            const node = pop()
+            if ( predicate( node ) ) results.push( node )
+            push( node.children )
         }
         return results
-    }
-
-    /** @param {XMLQueryPredicate} predicate */
-    probeParents( predicate ) {
-        let curr = this
-        while ( curr ) {
-            if ( predicate( curr ) ) return curr
-            curr = curr.parent
-        }
-        return null
     }
 }
 
 class Parser {
     /** @param {string} text */
     constructor( text ) {
-        this.text = text
+        this.text = text.replace( /<!--[^]*?-->/g, s => " ".repeat( s.length ) )
         this.index = 0
     }
 
@@ -200,7 +323,6 @@ class Parser {
 
 
 export function parseXML( text ) {
-    text = text.replace( /<!--[^]*?-->/g, "" )
     const parser = new Parser( text )
 
     /** @param {XMLNode} parent  */
@@ -248,23 +370,26 @@ export function parseXML( text ) {
 
 
 export function parseHTML( text ) {
-    text = text.replace( /<!--[^]*?-->/g, "" )
     const parser = new Parser( text )
 
     /** @param {XMLNode} parent  */
     function parseNode( parent ) {
         // Parse Begin Tag
         const start = parser.index
-        const { name, attributes } = parser.parseTagBegin()
+        const { name, attributes, selfClosing } = parser.parseTagBegin()
         const node = new XMLNode( name, attributes, [], parent, { start, end: parser.index } )
         if ( HTMLVoidElements.has( name ) ) return node
+        if ( selfClosing && !HTMLElements.has( name ) ) return node
 
         // Parse Children
-        if ( name === "script" || name === "style" ) {
-            node.children = parseForeignText( node )
-        } else {
-            node.children = parseChildren( node )
+        switch ( name ) {
+            case "script":
+            case "style":
+                node.children = parseForeignText( node ); break
+            default:
+                node.children = parseChildren( node )
         }
+
         parser.advanceAll( `</${name}>` )
         node.properties.end = parser.index
 

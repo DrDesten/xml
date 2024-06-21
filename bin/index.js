@@ -1,5 +1,5 @@
 import { inspect } from "util"
-import { parseHTML, parseXML } from "./parser.js"
+import { XMLNode, parseHTML, parseXML } from "./parser.js"
 
 
 const empty = ``
@@ -19,6 +19,11 @@ console.log( parseXML( nodetext ) )
 console.log( parseXML( selfclose ) )
 console.log( parseXML( attr ) )
 console.log( parseXML( boolattr ) )
+
+const queryxml = `<root> <target o="0"/> <x><target o="1"/></x> <target o="2"/> </root>`
+const queryparsed = parseXML( queryxml )[0]
+const query = node => node.name === "target"
+console.log( queryparsed.findChildren( query ) )
 
 const html = `<!DOCTYPE html>
 <html lang="en">
@@ -99,5 +104,9 @@ const html = `<!DOCTYPE html>
 
 </html>`
 
-console.log( inspect( parseHTML( html ), false, Infinity, true ) )
-console.log( parseHTML( html ) )
+const htmlparsedraw = parseHTML( html )
+const htmlparsed = htmlparsedraw.find( node => node instanceof XMLNode && node.name === "html" )
+
+console.log( inspect( htmlparsedraw, false, Infinity, true ) )
+console.log( htmlparsed.findChildren( node => node.name === "BACKGROUND" ) )
+
