@@ -1,151 +1,4 @@
-import { XMLElement } from "./node.js"
-
-const HTMLElements = new Set( [
-    "a",
-    "abbr",
-    "acronym",
-    "address",
-    "area",
-    "article",
-    "aside",
-    "audio",
-    "b",
-    "base",
-    "bdi",
-    "bdo",
-    "big",
-    "blockquote",
-    "body",
-    "br",
-    "button",
-    "canvas",
-    "caption",
-    "center",
-    "cite",
-    "code",
-    "col",
-    "colgroup",
-    "data",
-    "datalist",
-    "dd",
-    "del",
-    "details",
-    "dfn",
-    "dialog",
-    "dir",
-    "div",
-    "dl",
-    "dt",
-    "em",
-    "embed",
-    "fencedframe",
-    "fieldset",
-    "figcaption",
-    "figure",
-    "font",
-    "footer",
-    "form",
-    "frame",
-    "frameset",
-    "h1",
-    "head",
-    "header",
-    "hgroup",
-    "hr",
-    "html",
-    "i",
-    "iframe",
-    "img",
-    "input",
-    "ins",
-    "kbd",
-    "label",
-    "legend",
-    "li",
-    "link",
-    "main",
-    "map",
-    "mark",
-    "marquee",
-    "menu",
-    "menuitem",
-    "meta",
-    "meter",
-    "nav",
-    "nobr",
-    "noembed",
-    "noframes",
-    "noscript",
-    "object",
-    "ol",
-    "optgroup",
-    "option",
-    "output",
-    "p",
-    "param",
-    "picture",
-    "plaintext",
-    "portal",
-    "pre",
-    "progress",
-    "q",
-    "rb",
-    "rp",
-    "rt",
-    "rtc",
-    "ruby",
-    "s",
-    "samp",
-    "script",
-    "search",
-    "section",
-    "select",
-    "slot",
-    "small",
-    "source",
-    "span",
-    "strike",
-    "strong",
-    "style",
-    "sub",
-    "summary",
-    "sup",
-    "table",
-    "tbody",
-    "td",
-    "template",
-    "textarea",
-    "tfoot",
-    "th",
-    "thead",
-    "time",
-    "title",
-    "tr",
-    "track",
-    "tt",
-    "u",
-    "ul",
-    "var",
-    "video",
-    "wbr",
-    "xmp",
-] )
-const HTMLVoidElements = new Set( [
-    "area",
-    "base",
-    "br",
-    "col",
-    "embed",
-    "hr",
-    "img",
-    "input",
-    "link",
-    "meta",
-    "param",
-    "source",
-    "track",
-    "wbr",
-] )
+import { HTMLElements, HTMLNode, HTMLVoidElements, XMLNode } from "./node.js"
 
 class Parser {
     /** @param {string} text */
@@ -277,12 +130,12 @@ class Parser {
 export function parseXML( text ) {
     const parser = new Parser( text )
 
-    /** @param {XMLElement} parent  */
+    /** @param {XMLNode} parent  */
     function parseNode( parent ) {
         // Parse Begin Tag
         const start = parser.index
         const { name, attributes, selfClosing } = parser.parseTagBegin()
-        const node = new XMLElement( name, attributes, [], parent, { start, end: parser.index } )
+        const node = new XMLNode( name, attributes, [], parent, { start, end: parser.index } )
         if ( selfClosing ) return node
 
         // Parse Children
@@ -293,7 +146,7 @@ export function parseXML( text ) {
         return node
     }
 
-    /** @param {XMLElement} parent  */
+    /** @param {XMLNode} parent  */
     function parseChild( parent ) {
         if ( parser.peekAll( /<[a-zA-Z]/ ) )
             return parseNode( parent )
@@ -301,7 +154,7 @@ export function parseXML( text ) {
             return parser.advanceAll( /([^<]|<[^a-zA-Z\/])+/ )
     }
 
-    /** @param {XMLElement} parent  */
+    /** @param {XMLNode} parent  */
     function parseChildren( parent ) {
         const children = []
         const end = `</${parent.name}>`
@@ -324,20 +177,20 @@ export function parseXML( text ) {
 export function parseHTML( text ) {
     const parser = new Parser( text )
 
-    /** @param {XMLElement} parent  */
+    /** @param {XMLNode} parent  */
     function parseNode( parent ) {
         // Parse Begin Tag
         const start = parser.index
         const { name, attributes, selfClosing } = parser.parseTagBegin()
-        const node = new XMLElement( name, attributes, [], parent, { start, end: parser.index } )
+        const node = new ( HTMLElements.has(name) ? HTMLNode : XMLNode )( name, attributes, [], parent, { start, end: parser.index } )
         if ( HTMLVoidElements.has( name ) ) return node
-        if ( selfClosing && !HTMLElements.has( name ) ) return node
+        if ( selfClosing && node instanceof XMLNode ) return node
 
         // Parse Children
         switch ( name ) {
             case "script":
             case "style":
-                node.children = parseForeignText( node ); break
+                node.children = parseForeignText( node, true ); break
             default:
                 node.children = parseChildren( node )
         }
@@ -348,12 +201,15 @@ export function parseHTML( text ) {
         return node
     }
 
-    /** @param {XMLElement} parent  */
-    function parseForeignText( parent ) {
-        return [parser.advanceAll( RegExp( `[^]*?(?=</${parent.name}>)` ) )]
+    /** @param {XMLNode} parent @param {boolean} [trim=false] */
+    function parseForeignText( parent, trim = false ) {
+        const text = parser.advanceAll( RegExp( `[^]*?(?=</${parent.name}>)` ) )
+        return trim
+            ? [text.replace(/^\s+$/gm, "").replace(/^\n+|\n+$/g, "")] 
+            : [text]
     }
 
-    /** @param {XMLElement} parent  */
+    /** @param {XMLNode} parent  */
     function parseChild( parent ) {
         if ( parser.peekAll( /<[a-zA-Z]/ ) )
             return parseNode( parent )
@@ -361,7 +217,7 @@ export function parseHTML( text ) {
             return parser.advanceAll( /([^<]|<[^a-zA-Z\/])+/ ).replace( /\s+/, " " ).trim()
     }
 
-    /** @param {XMLElement} parent  */
+    /** @param {XMLNode} parent  */
     function parseChildren( parent ) {
         const children = []
         const end = `</${parent.name}>`

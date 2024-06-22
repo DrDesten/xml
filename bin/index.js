@@ -10,19 +10,19 @@ const selfclose = `<root/>`
 const attr = `<root attr="test"/>`
 const boolattr = `<root attr/>`
 
-console.log( parseXML( empty ) )
-console.log( parseXML( text ) )
-console.log( parseXML( node ) )
-console.log( parseXML( nodetext ) )
+console.log( parseXML( empty ) +"")
+console.log( parseXML( text ) +"")
+console.log( parseXML( node )+"" )
+console.log( parseXML( nodetext ) +"")
 
-console.log( parseXML( selfclose ) )
-console.log( parseXML( attr ) )
-console.log( parseXML( boolattr ) )
+console.log( parseXML( selfclose ) +"")
+console.log( parseXML( attr ) +"")
+console.log( parseXML( boolattr ) +"")
 
 const queryxml = `<root> <target o="0"/> <x><target o="1"/></x> <target o="2"/> </root>`
 const queryparsed = parseXML( queryxml )[0]
 const query = node => node.name === "target"
-console.log( queryparsed.findChildren( query ) )
+//console.log( queryparsed.findChildren( query ) )
 
 const html = `<!DOCTYPE html>
 <html lang="en">
@@ -108,6 +108,8 @@ const html = `<!DOCTYPE html>
 const htmlparsedraw = parseHTML( html )
 const htmlparsed = htmlparsedraw.find( node => node.name === "html" )
 
-console.log( inspect( htmlparsedraw, false, Infinity, true ) )
-console.log( htmlparsed.findChildren( node => node.name === "Background" ) )
+console.log(htmlparsed.toString())
+
+//console.log( inspect( htmlparsedraw, false, Infinity, true ) )
+//console.log( htmlparsed.findChildren( node => node.name === "Background" ) )
 
