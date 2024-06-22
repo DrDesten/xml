@@ -80,6 +80,8 @@ const html = `<!DOCTYPE html>
     <script src="animation.js"></script>
     <script src="svgbackground.js"></script>
 
+    <Background/>
+
     <script>
         // Rotate Links
         const links = [
@@ -108,5 +110,5 @@ const htmlparsedraw = parseHTML( html )
 const htmlparsed = htmlparsedraw.find( node => node instanceof XMLNode && node.name === "html" )
 
 console.log( inspect( htmlparsedraw, false, Infinity, true ) )
-console.log( htmlparsed.findChildren( node => node.name === "BACKGROUND" ) )
+console.log( htmlparsed.findChildren( node => node.name === "Background" ) )
 
