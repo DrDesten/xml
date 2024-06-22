@@ -217,7 +217,7 @@ export class XMLNode {
         this.properties = properties
     }
 
-    /** @param {XMLQueryPredicate} predicate */
+    /** @param {XMLQueryPredicate} predicate @returns {XMLNode?} */
     findChild( predicate ) {
         const stack = []
         function push( e ) { for ( let i = e.length - 1; i >= 0; i-- ) if ( e[i] instanceof XMLNode ) stack.push( e[i] ) }
@@ -232,7 +232,7 @@ export class XMLNode {
         return null
     }
 
-    /** @param {XMLQueryPredicate} predicate */
+    /** @param {XMLQueryPredicate} predicate @returns {XMLNode[]} */
     findChildren( predicate ) {
         const results = []
         const stack = []
@@ -248,7 +248,7 @@ export class XMLNode {
         return results
     }
 
-    /** @param {XMLQueryPredicate} predicate */
+    /** @param {XMLQueryPredicate} predicate @returns {XMLNode?} */
     findParent( predicate ) {
         let node = this
         while ( node = node.parent ) {
@@ -257,7 +257,7 @@ export class XMLNode {
         return node
     }
 
-    /** @param {XMLQueryPredicate} predicate */
+    /** @param {XMLQueryPredicate} predicate @returns {XMLNode[]} */
     findParents( predicate ) {
         const results = []
         let node = this
