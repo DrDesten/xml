@@ -1,3 +1,5 @@
+import { XMLElement } from "./node.js"
+
 const HTMLElements = new Set( [
     "a",
     "abbr",
@@ -145,77 +147,6 @@ const HTMLVoidElements = new Set( [
     "wbr",
 ] )
 
-/**
- * @typedef {(node: XMLNode) => boolean} XMLQueryPredicate
- */
-
-export class XMLNode {
-    /**
-     * @param {string} name
-     * @param {{[attribute: string]: string}} [attributes]
-     * @param {(XMLNode|string)[]} [children]
-     * @param {XMLNode?} [parent]
-     * @param {{start: number, end: number}} properties
-     */
-    constructor( name, attributes, children, parent, properties ) {
-        this.name = name
-        this.attributes = attributes
-        this.children = children
-        this.parent = parent
-        this.properties = properties
-    }
-
-    /** @param {XMLQueryPredicate} predicate */
-    findChild( predicate ) {
-        const stack = []
-        function push( e ) { for ( let i = e.length - 1; i >= 0; i-- ) if ( e[i] instanceof XMLNode ) stack.push( e[i] ) }
-        function pop() { return stack.pop() }
-
-        push( this.children )
-        while ( stack.length ) {
-            const node = pop()
-            if ( predicate( node ) ) return node
-            push( node.children )
-        }
-        return null
-    }
-
-    /** @param {XMLQueryPredicate} predicate */
-    findChildren( predicate ) {
-        const results = []
-        const stack = []
-        function push( e ) { for ( let i = e.length - 1; i >= 0; i-- ) if ( e[i] instanceof XMLNode ) stack.push( e[i] ) }
-        function pop() { return stack.pop() }
-
-        push( this.children )
-        while ( stack.length ) {
-            const node = pop()
-            if ( predicate( node ) ) results.push( node )
-            push( node.children )
-        }
-        return results
-    }
-
-    /** @param {XMLQueryPredicate} predicate */
-    findParent( predicate ) {
-        let node = this
-        while ( node = node.parent ) {
-            if ( predicate(node) ) break
-        }
-        return node
-    }
-
-    /** @param {XMLQueryPredicate} predicate */
-    findParents( predicate ) {
-        const results = []
-        let node = this
-        while ( node = node.parent ) {
-            if ( predicate(node) ) results.push(node)
-        }
-        return results
-    }
-}
-
 class Parser {
     /** @param {string} text */
     constructor( text ) {
@@ -346,12 +277,12 @@ class Parser {
 export function parseXML( text ) {
     const parser = new Parser( text )
 
-    /** @param {XMLNode} parent  */
+    /** @param {XMLElement} parent  */
     function parseNode( parent ) {
         // Parse Begin Tag
         const start = parser.index
         const { name, attributes, selfClosing } = parser.parseTagBegin()
-        const node = new XMLNode( name, attributes, [], parent, { start, end: parser.index } )
+        const node = new XMLElement( name, attributes, [], parent, { start, end: parser.index } )
         if ( selfClosing ) return node
 
         // Parse Children
@@ -362,7 +293,7 @@ export function parseXML( text ) {
         return node
     }
 
-    /** @param {XMLNode} parent  */
+    /** @param {XMLElement} parent  */
     function parseChild( parent ) {
         if ( parser.peekAll( /<[a-zA-Z]/ ) )
             return parseNode( parent )
@@ -370,7 +301,7 @@ export function parseXML( text ) {
             return parser.advanceAll( /([^<]|<[^a-zA-Z\/])+/ )
     }
 
-    /** @param {XMLNode} parent  */
+    /** @param {XMLElement} parent  */
     function parseChildren( parent ) {
         const children = []
         const end = `</${parent.name}>`
@@ -393,12 +324,12 @@ export function parseXML( text ) {
 export function parseHTML( text ) {
     const parser = new Parser( text )
 
-    /** @param {XMLNode} parent  */
+    /** @param {XMLElement} parent  */
     function parseNode( parent ) {
         // Parse Begin Tag
         const start = parser.index
         const { name, attributes, selfClosing } = parser.parseTagBegin()
-        const node = new XMLNode( name, attributes, [], parent, { start, end: parser.index } )
+        const node = new XMLElement( name, attributes, [], parent, { start, end: parser.index } )
         if ( HTMLVoidElements.has( name ) ) return node
         if ( selfClosing && !HTMLElements.has( name ) ) return node
 
@@ -417,12 +348,12 @@ export function parseHTML( text ) {
         return node
     }
 
-    /** @param {XMLNode} parent  */
+    /** @param {XMLElement} parent  */
     function parseForeignText( parent ) {
         return [parser.advanceAll( RegExp( `[^]*?(?=</${parent.name}>)` ) )]
     }
 
-    /** @param {XMLNode} parent  */
+    /** @param {XMLElement} parent  */
     function parseChild( parent ) {
         if ( parser.peekAll( /<[a-zA-Z]/ ) )
             return parseNode( parent )
@@ -430,7 +361,7 @@ export function parseHTML( text ) {
             return parser.advanceAll( /([^<]|<[^a-zA-Z\/])+/ ).replace( /\s+/, " " ).trim()
     }
 
-    /** @param {XMLNode} parent  */
+    /** @param {XMLElement} parent  */
     function parseChildren( parent ) {
         const children = []
         const end = `</${parent.name}>`

@@ -1,6 +1,5 @@
 import { inspect } from "util"
-import { XMLNode, parseHTML, parseXML } from "./parser.js"
-
+import { parseHTML, parseXML } from "./parser.js"
 
 const empty = ``
 const text = `Sample "Text"!`
@@ -107,7 +106,7 @@ const html = `<!DOCTYPE html>
 </html>`
 
 const htmlparsedraw = parseHTML( html )
-const htmlparsed = htmlparsedraw.find( node => node instanceof XMLNode && node.name === "html" )
+const htmlparsed = htmlparsedraw.find( node => node.name === "html" )
 
 console.log( inspect( htmlparsedraw, false, Infinity, true ) )
 console.log( htmlparsed.findChildren( node => node.name === "Background" ) )
