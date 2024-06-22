@@ -1,7 +1,7 @@
 const HTMLElements = new Set( [
     "a",
     "abbr",
-    "acronym>",
+    "acronym",
     "address",
     "area",
     "article",
@@ -11,14 +11,14 @@ const HTMLElements = new Set( [
     "base",
     "bdi",
     "bdo",
-    "big>",
+    "big",
     "blockquote",
     "body",
     "br",
     "button",
     "canvas",
     "caption",
-    "center>",
+    "center",
     "cite",
     "code",
     "col",
@@ -30,21 +30,21 @@ const HTMLElements = new Set( [
     "details",
     "dfn",
     "dialog",
-    "dir>",
+    "dir",
     "div",
     "dl",
     "dt",
     "em",
     "embed",
-    "fencedframe>",
+    "fencedframe",
     "fieldset",
     "figcaption",
     "figure",
-    "font>",
+    "font",
     "footer",
     "form",
-    "frame>",
-    "frameset>",
+    "frame",
+    "frameset",
     "h1",
     "head",
     "header",
@@ -64,15 +64,15 @@ const HTMLElements = new Set( [
     "main",
     "map",
     "mark",
-    "marquee>",
+    "marquee",
     "menu",
-    "menuitem>",
+    "menuitem",
     "meta",
     "meter",
     "nav",
-    "nobr>",
-    "noembed>",
-    "noframes>",
+    "nobr",
+    "noembed",
+    "noframes",
     "noscript",
     "object",
     "ol",
@@ -80,17 +80,17 @@ const HTMLElements = new Set( [
     "option",
     "output",
     "p",
-    "param>",
+    "param",
     "picture",
-    "plaintext>",
-    "portal>",
+    "plaintext",
+    "portal",
     "pre",
     "progress",
     "q",
-    "rb>",
+    "rb",
     "rp",
     "rt",
-    "rtc>",
+    "rtc",
     "ruby",
     "s",
     "samp",
@@ -102,7 +102,7 @@ const HTMLElements = new Set( [
     "small",
     "source",
     "span",
-    "strike>",
+    "strike",
     "strong",
     "style",
     "sub",
@@ -120,7 +120,7 @@ const HTMLElements = new Set( [
     "title",
     "tr",
     "track",
-    "tt>",
+    "tt",
     "u",
     "ul",
     "var",
@@ -167,10 +167,11 @@ export class XMLNode {
 
     /** @param {XMLQueryPredicate} predicate */
     findChild( predicate ) {
-        const stack = [this]
+        const stack = []
         function push( e ) { for ( let i = e.length - 1; i >= 0; i-- ) if ( e[i] instanceof XMLNode ) stack.push( e[i] ) }
         function pop() { return stack.pop() }
 
+        push( this.children )
         while ( stack.length ) {
             const node = pop()
             if ( predicate( node ) ) return node
@@ -182,14 +183,34 @@ export class XMLNode {
     /** @param {XMLQueryPredicate} predicate */
     findChildren( predicate ) {
         const results = []
-        const stack = [this]
+        const stack = []
         function push( e ) { for ( let i = e.length - 1; i >= 0; i-- ) if ( e[i] instanceof XMLNode ) stack.push( e[i] ) }
         function pop() { return stack.pop() }
 
+        push( this.children )
         while ( stack.length ) {
             const node = pop()
             if ( predicate( node ) ) results.push( node )
             push( node.children )
+        }
+        return results
+    }
+
+    /** @param {XMLQueryPredicate} predicate */
+    findParent( predicate ) {
+        let node = this
+        while ( node = node.parent ) {
+            if ( predicate(node) ) break
+        }
+        return node
+    }
+
+    /** @param {XMLQueryPredicate} predicate */
+    findParents( predicate ) {
+        const results = []
+        let node = this
+        while ( node = node.parent ) {
+            if ( predicate(node) ) results.push(node)
         }
         return results
     }
