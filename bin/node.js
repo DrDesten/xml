@@ -144,6 +144,41 @@ export const HTMLVoidElements = new Set( [
     "track",
     "wbr",
 ] )
+export const HTMLInlineElements = new Set([
+    "a",
+    "abbr",
+    "acronym",
+    "b",
+    "bdo",
+    "big",
+    "br",
+    "button",
+    "cite",
+    "code",
+    "dfn",
+    "em",
+    "i",
+    "img",
+    "input",
+    "kbd",
+    "label",
+    "map",
+    "object",
+    "output",
+    "q",
+    "samp",
+    "script",
+    "select",
+    "small",
+    "span",
+    "strong",
+    "sub",
+    "sup",
+    "textarea",
+    "time",
+    "tt",
+    "var",
+])
 
 /**
  * @typedef {(node: XMLNode) => boolean} XMLQueryPredicate
@@ -319,7 +354,7 @@ export class XMLNode {
 export class HTMLNode extends XMLNode {
     toString() {
         return XMLNode.stringify( this, {
-            preserveWhitespace: false,
+            preserveWhitespace: node => !(node instanceof HTMLNode),
             allowSelfClosing: node => !(node instanceof HTMLNode) || HTMLVoidElements.has( node.name ),
             format: true,
             tabWidth: 4,
