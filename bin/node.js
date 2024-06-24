@@ -144,7 +144,7 @@ export const HTMLVoidElements = new Set( [
     "track",
     "wbr",
 ] )
-export const HTMLInlineElements = new Set([
+export const HTMLInlineElements = new Set( [
     "a",
     "abbr",
     "acronym",
@@ -178,7 +178,7 @@ export const HTMLInlineElements = new Set([
     "time",
     "tt",
     "var",
-])
+] )
 
 /**
  * @typedef {(node: XMLNode) => boolean} XMLQueryPredicate
@@ -201,12 +201,32 @@ export const HTMLInlineElements = new Set([
  * @property {number} tabWidth
  */
 
+export class XMLAttributes {
+    /** @param {{[attribute: string]: string}} attributes */
+    constructor( attributes = {} ) {
+        for ( const a in attributes ) {
+            this[a] = attributes[a]
+        }
+    }
+
+    /** @param {{[attribute: string]: string}} attributes */
+    static stringify( attributes ) {
+        return Object.entries( attributes )
+            .map( ( [k, v, quot = v.includes( '"' ) ? "'" : '"'] ) => v ? `${k}=${quot}${v}${quot}` : k )
+            .join( " " )
+    }
+
+    toString() {
+        return XMLAttributes.stringify( this )
+    }
+}
+
 export class XMLNode {
     /**
      * @param {string} name
-     * @param {{[attribute: string]: string}} [attributes]
-     * @param {(XMLNode|string)[]} [children]
-     * @param {XMLNode?} [parent]
+     * @param {XMLAttributes} attributes
+     * @param {(XMLNode|string)[]} children
+     * @param {XMLNode?} parent
      * @param {{start: number, end: number}} properties
      */
     constructor( name, attributes, children, parent, properties ) {
@@ -252,7 +272,7 @@ export class XMLNode {
     findParent( predicate ) {
         let node = this
         while ( node = node.parent ) {
-            if ( predicate(node) ) break
+            if ( predicate( node ) ) break
         }
         return node
     }
@@ -262,7 +282,7 @@ export class XMLNode {
         const results = []
         let node = this
         while ( node = node.parent ) {
-            if ( predicate(node) ) results.push(node)
+            if ( predicate( node ) ) results.push( node )
         }
         return results
     }
@@ -286,9 +306,7 @@ export class XMLNode {
         const { preserveWhitespace, allowSelfClosing, format, tabWidth } = XMLNode.applyStringifyOptions( options, node )
 
         function tagOpen( selfClosing = false ) {
-            const attributes = Object.entries( node.attributes ).map( ([ k, v, quot ]) => 
-                v ? ( quot = v.includes(`"`) ? `'` : `"`, `${k}=${quot}${v}${quot}` ) : k
-            ).join(" ")
+            const attributes = node.attributes.toString()
             return `<${node.name}${attributes ? " " + attributes : ""}${selfClosing ? "/" : ""}>`
         }
         function tagClose() {
@@ -296,7 +314,7 @@ export class XMLNode {
         }
 
         // ---
-        
+
         const padding = " ".repeat( indent )
         let outerPadding = padding
         let innerPadding = ""
@@ -308,20 +326,20 @@ export class XMLNode {
             return outerPadding + ( allowSelfClosing ? tagOpen( true ) : tagOpen() + tagClose() )
         }
         if ( preserveWhitespace || !format ) {
-            innerXML = node.children.map( child => 
+            innerXML = node.children.map( child =>
                 child instanceof XMLNode
-                    ? XMLNode.stringify( child, options ) 
+                    ? XMLNode.stringify( child, options )
                     : child
-            ).join("")
+            ).join( "" )
             return final()
         }
-        
+
         if ( node.children.length === 1 && typeof node.children[0] === "string" ) {
             // Text Node
             const innerText = node.children[0]
-                .replace(/^\s+$|\s+$/gm, "")
-                .replace(/^(\r?\n)+|(\r?\n)+$/, "")
-            if ( innerText.includes("\n") ) {
+                .replace( /^\s+$|\s+$/gm, "" )
+                .replace( /^(\r?\n)+|(\r?\n)+$/, "" )
+            if ( innerText.includes( "\n" ) ) {
                 innerXML = "\n" + innerText + "\n"
                 innerPadding = padding
             } else {
@@ -329,11 +347,11 @@ export class XMLNode {
             }
         } else {
             // Complex Node
-            innerXML = node.children.map( child => 
+            innerXML = node.children.map( child =>
                 child instanceof XMLNode
                     ? XMLNode.stringify( child, options, indent + tabWidth )
-                    : child.replace(/^\s+$|\s+$/gm, "").replace(/^(\r?\n)+|(\r?\n)+$/, "")
-            ).filter( s => s.length ).join("\n")
+                    : child.replace( /^\s+$|\s+$/gm, "" ).replace( /^(\r?\n)+|(\r?\n)+$/, "" )
+            ).filter( s => s.length ).join( "\n" )
             innerXML = "\n" + innerXML + "\n"
             innerPadding = padding
         }
@@ -354,8 +372,8 @@ export class XMLNode {
 export class HTMLNode extends XMLNode {
     toString() {
         return XMLNode.stringify( this, {
-            preserveWhitespace: node => !(node instanceof HTMLNode),
-            allowSelfClosing: node => !(node instanceof HTMLNode) || HTMLVoidElements.has( node.name ),
+            preserveWhitespace: node => !( node instanceof HTMLNode ),
+            allowSelfClosing: node => !( node instanceof HTMLNode ) || HTMLVoidElements.has( node.name ),
             format: true,
             tabWidth: 4,
         } )

@@ -1,4 +1,4 @@
-import { HTMLElements, HTMLNode, HTMLVoidElements, XMLNode } from "./node.js"
+import { HTMLElements, HTMLNode, HTMLVoidElements, XMLAttributes, XMLNode } from "./node.js"
 
 class Parser {
     /** @param {string} text */
@@ -92,7 +92,7 @@ class Parser {
     parseTagBegin() {
         const tag = {
             name: undefined,
-            attributes: {},
+            attributes: new XMLAttributes,
             selfClosing: undefined,
         }
 
@@ -182,7 +182,7 @@ export function parseHTML( text ) {
         // Parse Begin Tag
         const start = parser.index
         const { name, attributes, selfClosing } = parser.parseTagBegin()
-        const node = new ( HTMLElements.has(name) ? HTMLNode : XMLNode )( name, attributes, [], parent, { start, end: parser.index } )
+        const node = new ( HTMLElements.has( name ) ? HTMLNode : XMLNode )( name, attributes, [], parent, { start, end: parser.index } )
         if ( HTMLVoidElements.has( name ) ) return node
         if ( selfClosing && node instanceof XMLNode ) return node
 
@@ -205,7 +205,7 @@ export function parseHTML( text ) {
     function parseForeignText( parent, trim = false ) {
         const text = parser.advanceAll( RegExp( `[^]*?(?=</${parent.name}>)` ) )
         return trim
-            ? [text.replace(/^\s+$/gm, "").replace(/^\n+|\n+$/g, "")] 
+            ? [text.replace( /^\s+$/gm, "" ).replace( /^\n+|\n+$/g, "" )]
             : [text]
     }
 
